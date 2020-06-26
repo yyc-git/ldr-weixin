@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset=utf-8>
+    <title>Basic Render</title>
+    <meta name="viewport" content="width=device-width" />
+</head>
+
+<body>
+
+    <!-- minified -->
+    <script src="js/most.min.js"></script>
+
+    <script src="js/three.min.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <script src="src/LDRLoader.js"></script>
+    <script src="src/LDRGenerator.js"></script>
+    <script src="src/LDRPartType.js"></script>
+    <script src="src/LDRPartDescription.js"></script>
+    <script src="src/LDRStep.js"></script>
+    <script src="src/LDRStructure.js"></script>
+    <script src="src/LDRColorManager.js"></script>
+    <script src="src/colors.js"></script>
+    <script src="src/LDRGeometries.js"></script>
+    <script src="src/LDRShaders.js"></script>
+    <script src="src/LDRMeshCollector.js"></script>
+    <script src="src/LDRColorMaterials.js"></script>
+
+
+
+
+    <script src="src/adapter/Adapter.js"></script>
+
+    <script src="src/adapter/three/ThreeAdapter.js"></script>
+
+    <script>
+
+        setAdapter(THREEAdapter, {});
+
+
+        let startTime = new Date();
+        // The model to be rendered:
+        // let model = 'models/corvette_full.mpd';
+        let model = 'models/test6.mpd';
+        // let model = 'models/test3.mpd';
+        // let model = 'models/test.ldr';
+        // let model = 'models/test.mpd';
+        // let model = 'models/test.dat';
+
+        // Set up camera:
+        let camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000000);
+        camera.position.set(10000, 7000, 10000);
+        camera.lookAt(new THREE.Vector3());
+
+        // Set up scene:
+        let scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xFFFFFF);
+
+        let baseObject = new THREE.Group(), opaqueObject = new THREE.Group(), sixteenObject = new THREE.Group(); transObject = new THREE.Group();
+        baseObject.add(opaqueObject); // Draw non-trans before trans.
+        baseObject.add(sixteenObject);
+        baseObject.add(transObject);
+        scene.add(baseObject);
+        let mc = new LDR.MeshCollector(opaqueObject, sixteenObject, transObject);
+
+        // Set up renderer:
+        let renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        function render() {
+            renderer.render(scene, camera);
+        }
+        document.body.appendChild(renderer.domElement);
+
+        function onWindowResize() {
+            camera.left = -window.innerWidth;
+            camera.right = window.innerWidth;
+            camera.top = window.innerHeight;
+            camera.bottom = -window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            render();
+        }
+
+        // React to user input:
+        let controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.addEventListener('change', render);
+        window.addEventListener('resize', onWindowResize, false);
+
+        // Three.js loader for LDraw models:
+        let ldrLoader;
+
+        // ldrLoader = new LDRLoader(onLoad, null, { cleanUpPrimitivesAndSubParts: true });
+        ldrLoader = new LDRLoader({});
+        ldrLoader.load(model)
+            .subscribe({
+                next: (data) => {
+                    console.log("next: ", data)
+                },
+                error: (e) => {
+                    console.log(e);
+                },
+                complete: () => {
+                    console.log(ldrLoader);
+
+
+                    console.log("Model loaded in " + (new Date() - startTime) + "ms.");
+
+                    let startTime2 = new Date();
+
+                    ldrLoader.generate(4, mc);
+
+                    // Find center of drawn model:
+                    let b = mc.boundingBox;
+                    let elementCenter = new THREE.Vector3();
+                    b.getCenter(elementCenter);
+                    baseObject.position.set(-elementCenter.x, -elementCenter.y, -elementCenter.z);
+                    //baseObject.add(new THREE.Box3Helper(b, 0x0000FF)); // Uncomment if you want to see the bounding box
+
+                    camera.zoom = window.innerWidth / b.min.distanceTo(b.max);
+                    onWindowResize();
+                    console.log("Model rendered in " + (new Date() - startTime2) + "ms.");
+                }
+            });
+    </script>
+</body>
+
+</html>
